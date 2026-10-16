@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.TwitchTranslate" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">#9146FF</item>
+        <item name="android:colorPrimaryDark">#7A2EE6</item>
+        <item name="android:colorAccent">#9146FF</item>
+    </style>
+</resources>
