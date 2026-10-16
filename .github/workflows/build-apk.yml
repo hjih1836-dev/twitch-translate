@@ -20,6 +20,10 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # setup-android v3 默认会装已废弃的 tools 包，会报 Failed to find package 'tools'
+          # 显式只装 platform-tools，覆盖默认包列表
+          packages: 'platform-tools'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
