@@ -78,6 +78,8 @@ class OverlayService : Service() {
     private var windowManager: WindowManager? = null
     private var overlayView: ComposeView? = null
     private var currentChannel: String = DEFAULT_CHANNEL
+    private var speechTranslator: SpeechTranslator? = null
+    private var speechJob: Job? = null
 
     // ComposeView needs a LifecycleOwner + SavedStateRegistryOwner when hosted in a Service.
     private inner class ServiceLifecycleOwner : LifecycleOwner, SavedStateRegistryOwner {
@@ -124,6 +126,8 @@ class OverlayService : Service() {
                 startForegroundWithNotification(channel)
                 startOverlay()
                 startTranslationLoop(channel)
+                // 主播语音：如果设置里开了，就启动语音识别 + 翻译
+                startSpeechIfEnabled(channel)
             }
         }
         return START_STICKY
@@ -223,6 +227,34 @@ class OverlayService : Service() {
 
     private var currentClient: TwitchChatClient? = null
 
+    private fun startSpeechIfEnabled(channel: String) {
+        speechJob?.cancel()
+        speechTranslator?.stop()
+        speechTranslator = null
+        if (!DanmakuRepository.settings.value.speechEnabled) return
+        val st = SpeechTranslator(
+            context = this,
+            scope = serviceScope,
+            translator = translator,
+            channel = channel,
+            onStatus = { s -> DanmakuRepository.setStatus(s) }
+        )
+        speechTranslator = st
+        speechJob = serviceScope.launch {
+            // 等翻译模型准备好再开始听，避免识别出来翻译卡住
+            try {
+                (translator as? MlKitTranslator)?.ensureModel()
+            } catch (_: Exception) {}
+            st.start()
+            // 监听开关变化：用户在主界面关掉语音时，停掉识别
+            DanmakuRepository.settings.collect { settings ->
+                if (!settings.speechEnabled) {
+                    speechTranslator?.stop()
+                }
+            }
+        }
+    }
+
     // Simple token-bucket-ish throttle: at most 1 translation per 250ms.
     private var lastTranslateAt = 0L
 
@@ -255,6 +287,10 @@ class OverlayService : Service() {
     private fun stopAll() {
         ircJob?.cancel()
         ircJob = null
+        speechJob?.cancel()
+        speechJob = null
+        speechTranslator?.stop()
+        speechTranslator = null
         currentClient?.disconnect()
         currentClient = null
         try { translator.close() } catch (_: Exception) {}
