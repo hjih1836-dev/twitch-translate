@@ -66,6 +66,13 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    private val audioPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) {
+                Toast.makeText(this, "录音权限被拒绝，主播语音翻译将不可用，弹幕翻译仍可运行", Toast.LENGTH_LONG).show()
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -74,6 +81,7 @@ class MainActivity : ComponentActivity() {
                     MainScreen(
                         onRequestOverlayPermission = { requestOverlayPermission() },
                         onRequestNotificationPermission = { requestNotificationPermission() },
+                        onRequestAudioPermission = { requestAudioPermission() },
                         onStart = { channel -> startTranslation(channel) },
                         onStop = { stopTranslation() }
                     )
@@ -108,6 +116,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun requestAudioPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        } else {
+            Toast.makeText(this, "已拥有录音权限", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun startTranslation(channel: String) {
         if (!Settings.canDrawOverlays(this)) {
             Toast.makeText(this, "请先授予悬浮窗权限", Toast.LENGTH_LONG).show()
@@ -139,6 +157,7 @@ class MainActivity : ComponentActivity() {
 private fun MainScreen(
     onRequestOverlayPermission: () -> Unit,
     onRequestNotificationPermission: () -> Unit,
+    onRequestAudioPermission: () -> Unit,
     onStart: (String) -> Unit,
     onStop: () -> Unit
 ) {
@@ -172,6 +191,9 @@ private fun MainScreen(
                     }
                     OutlinedButton(onClick = onRequestNotificationPermission) {
                         Text("通知权限")
+                    }
+                    OutlinedButton(onClick = onRequestAudioPermission) {
+                        Text("录音权限")
                     }
                 }
                 Text(
@@ -210,6 +232,29 @@ private fun MainScreen(
                 Text(text = "状态：$status", style = MaterialTheme.typography.bodySmall)
                 Text(
                     text = "提示：切换频道时先点停止，再改频道名重新开始。",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        // Streamer speech
+        Card {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(text = "2.5 主播语音翻译（新）", style = MaterialTheme.typography.titleSmall)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("识别并翻译主播说的话", modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = settings.speechEnabled,
+                        onCheckedChange = {
+                            DanmakuRepository.updateSettings { s -> s.copy(speechEnabled = it) }
+                        }
+                    )
+                }
+                Text(
+                    text = "用麦克风收手机外放 / 电脑音箱的声音，识别成英文再翻成中文，同样以悬浮条显示。安静环境效果最好。需要录音权限。开这个开关后点开始翻译才生效，停止时一起停。",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
