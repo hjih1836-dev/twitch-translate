@@ -31,7 +31,9 @@ data class OverlaySettings(
     /** max items kept in overlay */
     val maxItems: Int = 6,
     /** how long an item stays visible (ms) */
-    val ttlMillis: Long = 8000L
+    val ttlMillis: Long = 8000L,
+    /** 是否开启主播语音识别 + 翻译（麦克风收音） */
+    val speechEnabled: Boolean = false
 )
 
 object DanmakuRepository {
